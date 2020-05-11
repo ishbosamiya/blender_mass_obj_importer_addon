@@ -2,7 +2,7 @@
 bl_info = {
     "name": "OBJ mass importer",
     "author": "Ish Bosamiya",
-    "version": (1, 0),
+    "version": (1, 1),
     "blender": (2, 82, 0),
     "category": "Import",
     "location": "3D Viewport",
@@ -14,6 +14,7 @@ bl_info = {
 
 import pathlib
 import bpy
+from mathutils import Vector
 
 def mass_import_path(scene) -> pathlib.Path:
     abspath = bpy.path.abspath(scene.mass_import_path)
@@ -58,6 +59,19 @@ class IMPORT_SCENE_OT_obj_reload(bpy.types.Operator):
 
         return {'FINISHED'}
 
+class IMPORT_SCENE_OT_lineup_position(bpy.types.Operator):
+    bl_idname = 'import_scene.lineup_position'
+    bl_label = 'Reposition in Line'
+
+    def execute(self, context):
+        i = 0
+        selected_objects = sorted(context.selected_objects, key=lambda ob: ob.name)
+        previous_position = selected_objects[0].location
+        for ob in selected_objects:
+            ob.location = previous_position + (i * Vector(context.scene.object_distance_vector))
+            i += 1
+        return {'FINISHED'}
+
 class VIEW3D_PT_mass_import(bpy.types.Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
@@ -77,10 +91,18 @@ class VIEW3D_PT_mass_import(bpy.types.Panel):
         else:
             col.label(text='No Active Object')
 
+        col = layout.column(align=True)
+        if context.selected_objects:
+            col.prop(context.scene, 'object_distance_vector')
+            col.operator('import_scene.lineup_position')
+        else:
+            col.label(text='No Selected Objects')
+
 blender_classes = {
     VIEW3D_PT_mass_import,
     IMPORT_SCENE_OT_obj_mass,
     IMPORT_SCENE_OT_obj_reload,
+    IMPORT_SCENE_OT_lineup_position,
 }
 
 def register():
@@ -90,6 +112,9 @@ def register():
     )
     bpy.types.Object.mass_import_fname = bpy.props.StringProperty(
         name = 'OBJ File',
+    )
+    bpy.types.Scene.object_distance_vector = bpy.props.FloatVectorProperty(
+        name = 'Object Distance Vector'
     )
     for blender_class in blender_classes:
         bpy.utils.register_class(blender_class)
